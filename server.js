@@ -50,15 +50,7 @@ if (!fs.existsSync(usersFile)) {
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('index');
-});
-
-app.get('/register', (req, res) => {
-  res.render('register');
-});
-
-app.get('/recognize', (req, res) => {
-  res.render('recognize');
+  res.render('index', { layout: false });
 });
 
 // API endpoint to save user data
