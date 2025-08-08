@@ -1,0 +1,29 @@
+<div class="card">
+    <h2 style="text-align: center; margin-bottom: 30px; color: #1F2937;">Welcome to Face Recognition System</h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-bottom: 30px;">
+        <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #3B82F6, #1D4ED8); border-radius: 15px; color: white;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">👤</div>
+            <h3 style="margin-bottom: 15px;">Register New User</h3>
+            <p style="margin-bottom: 20px; opacity: 0.9;">Capture facial data for 5 seconds to train the recognition system</p>
+            <a href="/register" class="btn" style="background: white; color: #3B82F6;">Start Registration</a>
+        </div>
+        
+        <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #10B981, #047857); border-radius: 15px; color: white;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🎯</div>
+            <h3 style="margin-bottom: 15px;">Recognize Face</h3>
+            <p style="margin-bottom: 20px; opacity: 0.9;">Real-time face recognition using your camera feed</p>
+            <a href="/recognize" class="btn" style="background: white; color: #10B981;">Start Recognition</a>
+        </div>
+    </div>
+    
+    <div style="background: #F3F4F6; padding: 25px; border-radius: 10px;">
+        <h3 style="color: #1F2937; margin-bottom: 15px;">How it works:</h3>
+        <ol style="color: #4B5563; line-height: 1.8;">
+            <li><strong>Registration:</strong> The system captures your face for 5 seconds, extracting unique facial features and creating a mathematical descriptor.</li>
+            <li><strong>Storage:</strong> Your facial data is securely stored locally on the server for future matching.</li>
+            <li><strong>Recognition:</strong> When recognizing, the system compares live camera feed against registered users using advanced AI algorithms.</li>
+            <li><strong>Matching:</strong> The system displays the best match with a confidence score when a registered face is detected.</li>
+        </ol>
+    </div>
+</div>
