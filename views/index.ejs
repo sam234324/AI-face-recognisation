@@ -695,11 +695,6 @@ class VMSSystem {
             const detection = detections[i];
             const box = detection.detection.box;
             
-            // Draw face box
-            this.ctx.strokeStyle = '#00ff88';
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(box.x, box.y, box.width, box.height);
-            
             if (this.faceMatcher && detection.descriptor) {
                 const match = this.faceMatcher.findBestMatch(detection.descriptor);
                 
@@ -711,8 +706,13 @@ class VMSSystem {
                         box: box
                     });
                     
-                    // Draw recognized user label
+                    // Draw GREEN box for recognized user
                     this.ctx.fillStyle = '#00ff88';
+                    this.ctx.strokeStyle = '#00ff88';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.strokeRect(box.x, box.y, box.width, box.height);
+                    
+                    // Draw recognized user label with green background
                     this.ctx.fillRect(box.x, box.y - 30, box.width, 30);
                     this.ctx.fillStyle = '#000';
                     this.ctx.font = '14px Arial';
@@ -720,26 +720,45 @@ class VMSSystem {
                 } else {
                     unknownFaces.push({ box: box, descriptor: detection.descriptor });
                     
-                    // Draw unknown face box in red
+                    // Draw RED box for unknown face
                     this.ctx.strokeStyle = '#ff4444';
-                    this.ctx.lineWidth = 2;
+                    this.ctx.lineWidth = 3;
                     this.ctx.strokeRect(box.x, box.y, box.width, box.height);
                     
-                    // Draw unknown label
+                    // Draw unknown label with red background
                     this.ctx.fillStyle = '#ff4444';
                     this.ctx.fillRect(box.x, box.y - 30, box.width, 30);
                     this.ctx.fillStyle = '#fff';
                     this.ctx.font = '14px Arial';
                     this.ctx.fillText('Unknown', box.x + 5, box.y - 10);
                 }
+            } else {
+                // No face matcher or descriptor - treat as unknown
+                unknownFaces.push({ box: box, descriptor: detection.descriptor });
+                
+                // Draw RED box for unknown face
+                this.ctx.strokeStyle = '#ff4444';
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeRect(box.x, box.y, box.width, box.height);
+                
+                // Draw unknown label with red background
+                this.ctx.fillStyle = '#ff4444';
+                this.ctx.fillRect(box.x, box.y - 30, box.width, 30);
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = '14px Arial';
+                this.ctx.fillText('Unknown', box.x + 5, box.y - 10);
             }
         }
         
         this.updateUserInfo(recognizedUsers, unknownFaces);
         
         // Show registration modal for unknown faces
-        if (unknownFaces.length > 0 && !this.registrationMode) {
-            this.showRegistrationModal();
+        if (unknownFaces.length > 0 && !this.registrationMode && !document.getElementById('registrationModal').style.display === 'block') {
+            setTimeout(() => {
+                if (!this.registrationMode) {
+                    this.showRegistrationModal();
+                }
+            }, 2000); // Wait 2 seconds before showing modal
         }
     }
     
@@ -770,6 +789,7 @@ class VMSSystem {
     }
     
     showRegistrationModal() {
+        this.registrationMode = true;
         document.getElementById('registrationModal').style.display = 'block';
         this.setupRegistrationCamera();
     }
@@ -798,33 +818,50 @@ class VMSSystem {
             
             regVideo.srcObject = stream;
             
+            // Wait for video to load
+            await new Promise(resolve => {
+                regVideo.onloadedmetadata = resolve;
+            });
+            
             // Start face detection for registration preview
             const detectRegistrationFaces = async () => {
-                if (!this.registrationMode) return;
+                if (!this.registrationMode || document.getElementById('registrationModal').style.display === 'none') {
+                    return;
+                }
                 
-                const detections = await faceapi
-                    .detectAllFaces(regVideo, new faceapi.SsdMobilenetv1Options())
-                    .withFaceLandmarks()
-                    .withFaceDescriptors();
-                
-                regCtx.clearRect(0, 0, regCanvas.width, regCanvas.height);
-                
-                if (detections.length > 0) {
-                    const resized = faceapi.resizeResults(detections, {
-                        width: regVideo.videoWidth,
-                        height: regVideo.videoHeight
-                    });
+                try {
+                    const detections = await faceapi
+                        .detectAllFaces(regVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                        .withFaceLandmarks()
+                        .withFaceDescriptors();
                     
-                    faceapi.draw.drawDetections(regCanvas, resized);
+                    regCtx.clearRect(0, 0, regCanvas.width, regCanvas.height);
                     
-                    // Store descriptors during registration
-                    if (this.registrationData.startTime) {
-                        detections.forEach(detection => {
-                            if (detection.descriptor) {
-                                this.registrationData.descriptors.push(Array.from(detection.descriptor));
-                            }
+                    if (detections.length > 0) {
+                        const resized = faceapi.resizeResults(detections, {
+                            width: regVideo.videoWidth,
+                            height: regVideo.videoHeight
                         });
+                        
+                        // Draw green boxes for detected faces in registration
+                        resized.forEach(detection => {
+                            const box = detection.detection.box;
+                            regCtx.strokeStyle = '#00ff88';
+                            regCtx.lineWidth = 2;
+                            regCtx.strokeRect(box.x, box.y, box.width, box.height);
+                        });
+                        
+                        // Store descriptors during registration
+                        if (this.registrationData.startTime) {
+                            detections.forEach(detection => {
+                                if (detection.descriptor) {
+                                    this.registrationData.descriptors.push(Array.from(detection.descriptor));
+                                }
+                            });
+                        }
                     }
+                } catch (error) {
+                    console.error('Registration detection error:', error);
                 }
                 
                 setTimeout(detectRegistrationFaces, 100);
@@ -834,6 +871,7 @@ class VMSSystem {
             
         } catch (error) {
             console.error('Registration camera error:', error);
+            alert('Could not access camera for registration. Please check permissions.');
         }
     }
     
@@ -845,15 +883,17 @@ class VMSSystem {
             return;
         }
         
-        this.registrationMode = true;
         this.registrationData.descriptors = [];
         this.registrationData.startTime = Date.now();
         
         const progressContainer = document.getElementById('registrationProgress');
         const progressFill = document.getElementById('progressFill');
         const timeLeftSpan = document.getElementById('timeLeft');
+        const startBtn = document.getElementById('startRegistration');
         
         progressContainer.style.display = 'block';
+        startBtn.disabled = true;
+        startBtn.textContent = 'Registering...';
         
         const updateProgress = () => {
             const elapsed = Date.now() - this.registrationData.startTime;
@@ -877,6 +917,9 @@ class VMSSystem {
         try {
             if (this.registrationData.descriptors.length === 0) {
                 alert('No face detected during registration. Please try again.');
+                document.getElementById('startRegistration').disabled = false;
+                document.getElementById('startRegistration').textContent = 'Start Registration';
+                document.getElementById('registrationProgress').style.display = 'none';
                 this.closeRegistrationModal();
                 return;
             }
@@ -897,13 +940,20 @@ class VMSSystem {
                 await this.loadUsers(); // Reload users
                 this.closeRegistrationModal();
                 document.getElementById('newUserName').value = '';
+                document.getElementById('registrationProgress').style.display = 'none';
             } else {
                 alert(result.error || 'Registration failed');
+                document.getElementById('startRegistration').disabled = false;
+                document.getElementById('startRegistration').textContent = 'Start Registration';
+                document.getElementById('registrationProgress').style.display = 'none';
             }
             
         } catch (error) {
             console.error('Registration error:', error);
             alert('Registration failed. Please try again.');
+            document.getElementById('startRegistration').disabled = false;
+            document.getElementById('startRegistration').textContent = 'Start Registration';
+            document.getElementById('registrationProgress').style.display = 'none';
         }
     }
     
